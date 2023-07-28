@@ -2,6 +2,7 @@ package rateg_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,26 +14,43 @@ func myFunction(a int) (int, error) {
 	return a + 1, nil
 }
 
-func TestLimitRate(t *testing.T) {
-	myLimitedFunction := rateg.LimitRate(myFunction, time.Second)
+func TestLimitFn(t *testing.T) {
+	myLimitedFunction := rateg.LimitFn(myFunction, rateg.LimitFnOption{
+		Limit:  1,
+		Bucket: 1,
+	})
 	start := time.Now()
-	result, err := myLimitedFunction(1)
-	if err != nil {
-		t.Fatal(err)
+	wg := sync.WaitGroup{}
+	count := 3
+	wg.Add(count)
+	for i := 0; i < count; i++ {
+		go func() {
+			defer wg.Done()
+			result, err := myLimitedFunction(1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result != 2 {
+				t.Fatalf("expect 2, got %d", result)
+			} else {
+				t.Logf("fn called succeed")
+			}
+			result, err = myLimitedFunction(2)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result != 3 {
+				t.Fatalf("expect 3, got %d", result)
+			} else {
+				t.Logf("fn called succeed")
+			}
+		}()
 	}
-	if result != 2 {
-		t.Fatalf("expect 2, got %d", result)
-	}
-	result, err = myLimitedFunction(2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result != 3 {
-		t.Fatalf("expect 3, got %d", result)
-	}
-	elapsed := time.Since(start) // expect elapsed time greater than 1 second
-	if elapsed < time.Second {
-		t.Fatal("elapsed time less than 1 second")
+	wg.Wait()
+	elapsed := time.Since(start)
+	expected := time.Second * time.Duration(count*2-1)
+	if elapsed < expected {
+		t.Fatalf("elapsed time expected: > %s, actual: %s", expected, elapsed)
 	}
 }
 
@@ -45,27 +63,44 @@ func (t *Test) myFunction(a string) (string, error) {
 	return a + " world", nil
 }
 
-func TestLimitRateStruct(t *testing.T) {
+func TestLimitFnStruct(t *testing.T) {
 	test := &Test{}
-	test.limitFn = rateg.LimitRate(test.myFunction, time.Second)
+	test.limitFn = rateg.LimitFn(test.myFunction, rateg.LimitFnOption{
+		Limit:  1,
+		Bucket: 1,
+	})
 	start := time.Now()
-	result, err := test.limitFn("hello")
-	if err != nil {
-		t.Fatal(err)
+	wg := sync.WaitGroup{}
+	count := 3
+	wg.Add(count)
+	for i := 0; i < count; i++ {
+		go func() {
+			defer wg.Done()
+			result, err := test.limitFn("hello")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result != "hello world" {
+				t.Fatalf("expect hello world, got %s", result)
+			} else {
+				t.Logf("fn called succeed")
+			}
+			result, err = test.limitFn("hi")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result != "hi world" {
+				t.Fatalf("expect hi world, got %s", result)
+			} else {
+				t.Logf("fn called succeed")
+			}
+		}()
 	}
-	if result != "hello world" {
-		t.Fatalf("expect hello world, got %s", result)
-	}
-	result, err = test.limitFn("hi")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result != "hi world" {
-		t.Fatalf("expect hi world, got %s", result)
-	}
-	elapsed := time.Since(start) // expect elapsed time greater than 1 second
-	if elapsed < time.Second {
-		t.Fatal("elapsed time less than 1 second")
+	wg.Wait()
+	elapsed := time.Since(start)
+	expected := time.Second * time.Duration(count*2-1)
+	if elapsed < expected {
+		t.Fatalf("elapsed time expected: > %s, actual: %s", expected, elapsed)
 	}
 }
 
@@ -74,8 +109,11 @@ func myFunctionCtx(ctx context.Context, a int) (int, error) {
 	return a + 1, nil
 }
 
-func TestLimitRateCtx(t *testing.T) {
-	myLimitedFunction := rateg.LimitRateCtx(myFunctionCtx, time.Second)
+func TestLimitFnCtx(t *testing.T) {
+	myLimitedFunction := rateg.LimitFnCtx(myFunctionCtx, rateg.LimitFnOption{
+		Limit:  1,
+		Bucket: 1,
+	})
 	result, err := myLimitedFunction(context.Background(), 1)
 	if err != nil {
 		t.Fatal(err)
