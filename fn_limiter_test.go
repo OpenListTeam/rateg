@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Xhofe/rateg"
+	"gopkg.in/xhofe/rateg.v0"
 )
 
 func myFunction(a int) (int, error) {
