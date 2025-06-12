@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/xhofe/rateg.v0"
+	"github.com/OpenListTeam/rateg"
 )
 
 func TestCopy(t *testing.T) {
